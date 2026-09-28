@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+alembic
+python-dotenv
+python-jose[cryptography]
+pwdlib[argon2]
+pydantic
+pydantic-settings

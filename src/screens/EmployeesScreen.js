@@ -1,274 +1,214 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { colors } from '../theme/colors';
-import { Input } from '../components/common/Input';
-import { Select } from '../components/common/Select';
-import { Button } from '../components/common/Button';
-import { Badge } from '../components/common/Badge';
-import { EmptyState } from '../components/common/EmptyState';
-import { LoadingState } from '../components/common/LoadingState';
-import { EmployeeFormModal } from './EmployeeFormModal';
-import { EmployeeDetailModal } from './EmployeeDetailModal';
-import { employeeApi } from '../api/client';
+import React, { useMemo, useState } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-const DEPARTMENTS_FILTER = [
-  { label: 'ALL DEPARTMENTS', value: 'ALL' },
-  { label: 'Engineering', value: 'Engineering' },
-  { label: 'Human Resources', value: 'Human Resources' },
-  { label: 'Finance & Accounts', value: 'Finance & Accounts' },
-  { label: 'Operations & Logistics', value: 'Operations & Logistics' },
-  { label: 'Marketing & Brand', value: 'Marketing & Brand' },
+import { employees } from "../data/mockData";
+
+const colors = {
+  background: "#F7F7F5",
+  surface: "#FFFFFF",
+  border: "#E4E4DF",
+  text: "#191919",
+  muted: "#777772",
+};
+
+const tabs = [
+  {
+    key: "PRESENT",
+    label: "Present",
+  },
+  {
+    key: "ABSENT",
+    label: "Absent",
+  },
+  {
+    key: "HALF_DAY",
+    label: "Half Day",
+  },
 ];
 
-const STATUS_FILTER = [
-  { label: 'ALL STATUSES', value: 'ALL' },
-  { label: 'ACTIVE', value: 'ACTIVE' },
-  { label: 'ON LEAVE', value: 'ON_LEAVE' },
-  { label: 'TERMINATED', value: 'TERMINATED' },
-];
+export default function EmployeesScreen({
+  status,
+  onAddEmployee,
+}) {
+  const [localStatus, setLocalStatus] = useState(
+    status || "PRESENT"
+  );
 
-export function EmployeesScreen({ onQuickAddTriggered, onClearQuickAdd }) {
-  const [employees, setEmployees] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [department, setDepartment] = useState('ALL');
-  const [status, setStatus] = useState('ALL');
+  const activeStatus = status || localStatus;
 
-  const [selectedEmp, setSelectedEmp] = useState(null);
-  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(
+      (employee) => employee.status === activeStatus
+    );
+  }, [activeStatus]);
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingEmp, setEditingEmp] = useState(null);
-  const [formLoading, setFormLoading] = useState(false);
-
-  const fetchEmployees = async () => {
-    try {
-      setLoading(true);
-      const res = await employeeApi.getAll({ search, department, status });
-      setEmployees(res.data);
-    } catch (err) {
-      console.error('Failed to load employees:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchEmployees();
-  }, [search, department, status]);
-
-  // Handle Quick Add trigger from layout
-  useEffect(() => {
-    if (onQuickAddTriggered) {
-      setEditingEmp(null);
-      setIsFormOpen(true);
-      onClearQuickAdd && onClearQuickAdd();
-    }
-  }, [onQuickAddTriggered]);
-
-  const handleOpenCreate = () => {
-    setEditingEmp(null);
-    setIsFormOpen(true);
-  };
-
-  const handleOpenEdit = (emp) => {
-    setEditingEmp(emp);
-    setIsDetailOpen(false);
-    setIsFormOpen(true);
-  };
-
-  const handleOpenDetail = (emp) => {
-    setSelectedEmp(emp);
-    setIsDetailOpen(true);
-  };
-
-  const handleSaveEmployee = async (formData) => {
-    try {
-      setFormLoading(true);
-      if (editingEmp) {
-        await employeeApi.update(editingEmp.id, formData);
-      } else {
-        await employeeApi.create(formData);
+  const grouped = filteredEmployees.reduce(
+    (groups, employee) => {
+      if (!groups[employee.department]) {
+        groups[employee.department] = [];
       }
-      setIsFormOpen(false);
-      setEditingEmp(null);
-      fetchEmployees();
-    } catch (err) {
-      alert('Failed to save employee record.');
-    } finally {
-      setFormLoading(false);
-    }
-  };
 
-  const handleDeleteEmployee = async (id) => {
-    if (confirm('Are you sure you want to permanently delete this employee record?')) {
-      try {
-        await employeeApi.delete(id);
-        setIsDetailOpen(false);
-        fetchEmployees();
-      } catch (err) {
-        alert('Failed to delete employee record.');
-      }
-    }
-  };
+      groups[employee.department].push(employee);
+
+      return groups;
+    },
+    {}
+  );
+
+  const getCount = (key) =>
+    employees.filter(
+      (employee) => employee.status === key
+    ).length;
 
   return (
-    <View style={styles.container}>
-      {/* SECTION HEADER */}
-      <View style={styles.sectionHeader}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+    >
+      <View style={styles.header}>
         <View>
-          <Text style={styles.sectionSub}>WORKSPACE DIRECTORY</Text>
-          <Text style={styles.sectionTitle}>
-            Employee Records Ledger{' '}
-            <Text style={styles.countBadge}>({employees.length} Records)</Text>
+          <Text style={styles.title}>
+            Employee Management
+          </Text>
+
+          <Text style={styles.subtitle}>
+            Attendance overview
           </Text>
         </View>
-        <Button
-          title="+ ONBOARD NEW EMPLOYEE"
-          onPress={handleOpenCreate}
-          variant="primary"
-          size="md"
-        />
+
+        <Text style={styles.today}>Today</Text>
       </View>
 
-      {/* FILTER & SEARCH CONTROL BAR */}
-      <View style={styles.filterBar}>
-        <View style={styles.searchBox}>
-          <Input
-            value={search}
-            onChangeText={setSearch}
-            placeholder="Search code, name, email, designation..."
-            style={styles.noMarginInput}
-          />
-        </View>
-        <View style={styles.filterGroup}>
-          <Select
-            options={DEPARTMENTS_FILTER}
-            value={department}
-            onSelect={setDepartment}
-            placeholder="Department"
-            style={styles.noMarginSelect}
-          />
-          <Select
-            options={STATUS_FILTER}
-            value={status}
-            onSelect={setStatus}
-            placeholder="Status"
-            style={styles.noMarginSelect}
-          />
-          {(search || department !== 'ALL' || status !== 'ALL') && (
-            <Button
-              title="RESET FILTERS"
-              variant="outline"
-              size="sm"
-              onPress={() => {
-                setSearch('');
-                setDepartment('ALL');
-                setStatus('ALL');
-              }}
-            />
-          )}
-        </View>
-      </View>
+      <View style={styles.tabs}>
+        {tabs.map((tab) => {
+          const active = activeStatus === tab.key;
 
-      {/* EMPLOYEE DATA TABLE */}
-      {loading ? (
-        <LoadingState message="FETCHING EMPLOYEE LEDGER..." />
-      ) : employees.length === 0 ? (
-        <EmptyState
-          title="NO EMPLOYEES MATCH QUERY"
-          description="Try clearing search keywords or department filters to view active employee records."
-          actionTitle="ADD NEW EMPLOYEE"
-          onAction={handleOpenCreate}
-        />
-      ) : (
-        <View style={styles.tableCard}>
-          {/* TABLE HEADER */}
-          <View style={styles.tableHeaderRow}>
-            <Text style={[styles.th, { width: 90 }]}>CODE</Text>
-            <Text style={[styles.th, { flex: 1.4 }]}>EMPLOYEE IDENTITY</Text>
-            <Text style={[styles.th, { flex: 1.4 }]}>DEPARTMENT & DESIGNATION</Text>
-            <Text style={[styles.th, { width: 110 }]}>JOINED</Text>
-            <Text style={[styles.th, { width: 100 }]}>SALARY</Text>
-            <Text style={[styles.th, { width: 100 }]}>STATUS</Text>
-            <Text style={[styles.th, { width: 130, textAlign: 'right' }]}>ACTIONS</Text>
-          </View>
-
-          {/* TABLE ROWS */}
-          {employees.map((emp) => {
-            const isSelected = selectedEmp?.id === emp.id;
-            return (
-              <TouchableOpacity
-                key={emp.id}
-                activeOpacity={0.85}
-                onPress={() => handleOpenDetail(emp)}
-                style={[styles.tr, isSelected && styles.trSelected]}
+          return (
+            <Pressable
+              key={tab.key}
+              onPress={() => setLocalStatus(tab.key)}
+              style={[
+                styles.tab,
+                active && styles.activeTab,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  active && styles.activeTabText,
+                ]}
               >
-                <Text style={styles.tdCode}>{emp.employee_code}</Text>
+                {tab.label}
+              </Text>
 
-                <View style={[styles.tdCell, { flex: 1.4, flexDirection: 'row', gap: 10 }]}>
-                  <View style={styles.avatarMini}>
-                    <Text style={styles.avatarMiniText}>{emp.avatar || 'EM'}</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.empName}>
-                      {emp.first_name} {emp.last_name}
-                    </Text>
-                    <Text style={styles.empEmail}>{emp.email}</Text>
-                  </View>
-                </View>
+              <Text
+                style={[
+                  styles.count,
+                  active && styles.activeCount,
+                ]}
+              >
+                {getCount(tab.key)}
+              </Text>
+            </Pressable>
+          );
+        })}
 
-                <View style={[styles.tdCell, { flex: 1.4 }]}>
-                  <Text style={styles.empRole}>{emp.designation}</Text>
-                  <Text style={styles.empDept}>{emp.department}</Text>
-                </View>
+        <Pressable
+          onPress={onAddEmployee}
+          style={styles.addTab}
+        >
+          <Text style={styles.addText}>
+            + Add Employee
+          </Text>
+        </Pressable>
+      </View>
 
-                <Text style={[styles.tdText, { width: 110 }]}>{emp.date_of_joining}</Text>
-                <Text style={[styles.tdSalary, { width: 100 }]}>{emp.salary}</Text>
+      <View style={styles.headingRow}>
+        <Text style={styles.sectionTitle}>
+          {tabs.find(
+            (tab) => tab.key === activeStatus
+          )?.label}
+        </Text>
 
-                <View style={{ width: 100 }}>
-                  <Badge status={emp.status} size="sm" />
-                </View>
+        <Text style={styles.total}>
+          {filteredEmployees.length} employees
+        </Text>
+      </View>
 
-                <View style={styles.actionsCell}>
-                  <TouchableOpacity
-                    onPress={() => handleOpenDetail(emp)}
-                    style={styles.actionLinkBtn}
-                  >
-                    <Text style={styles.actionLinkText}>VIEW</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleOpenEdit(emp)}
-                    style={styles.actionLinkBtn}
-                  >
-                    <Text style={styles.actionLinkText}>EDIT</Text>
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+      {Object.entries(grouped).map(
+        ([department, departmentEmployees]) => (
+          <View
+            key={department}
+            style={styles.department}
+          >
+            <View style={styles.departmentHeader}>
+              <Text style={styles.departmentName}>
+                {department}
+              </Text>
+
+              <Text style={styles.departmentCount}>
+                {departmentEmployees.length}
+              </Text>
+            </View>
+
+            <View style={styles.list}>
+              {departmentEmployees.map((employee) => (
+                <EmployeeRow
+                  key={employee.id}
+                  employee={employee}
+                />
+              ))}
+            </View>
+          </View>
+        )
       )}
 
-      {/* MODALS */}
-      <EmployeeFormModal
-        visible={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setEditingEmp(null);
-        }}
-        onSave={handleSaveEmployee}
-        employee={editingEmp}
-        loading={formLoading}
-      />
+      {filteredEmployees.length === 0 && (
+        <View style={styles.empty}>
+          <Text style={styles.emptyTitle}>
+            No employees
+          </Text>
 
-      <EmployeeDetailModal
-        visible={isDetailOpen}
-        onClose={() => setIsDetailOpen(false)}
-        employee={selectedEmp}
-        onEdit={handleOpenEdit}
-        onDelete={handleDeleteEmployee}
-      />
+          <Text style={styles.emptyText}>
+            There are currently no employees in this category.
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function EmployeeRow({ employee }) {
+  const initials =
+    `${employee.first_name[0]}${employee.last_name[0]}`.toUpperCase();
+
+  return (
+    <View style={styles.employee}>
+      <View style={styles.avatar}>
+        <Text style={styles.initials}>
+          {initials}
+        </Text>
+      </View>
+
+      <View style={styles.employeeInfo}>
+        <Text style={styles.employeeName}>
+          {employee.first_name} {employee.last_name}
+        </Text>
+
+        <Text style={styles.designation}>
+          {employee.designation}
+        </Text>
+      </View>
+
+      <Text style={styles.departmentText}>
+        {employee.department}
+      </Text>
     </View>
   );
 }
@@ -276,169 +216,203 @@ export function EmployeesScreen({ onQuickAddTriggered, onClearQuickAdd }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    marginBottom: 16,
-  },
-  sectionSub: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: colors.inkMuted,
-    letterSpacing: 1.2,
-    fontFamily: 'monospace',
-    marginBottom: 2,
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '800',
-    color: colors.inkPrimary,
-    letterSpacing: -0.3,
-  },
-  countBadge: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.inkMuted,
-    fontFamily: 'monospace',
+    backgroundColor: colors.background,
   },
 
-  // Filter Bar
-  filterBar: {
-    backgroundColor: colors.surface,
+  content: {
+    padding: 28,
+    paddingBottom: 60,
+  },
+
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 24,
+  },
+
+  title: {
+    fontSize: 26,
+    fontWeight: "600",
+    color: colors.text,
+  },
+
+  subtitle: {
+    marginTop: 5,
+    fontSize: 13,
+    color: colors.muted,
+  },
+
+  today: {
+    fontSize: 13,
+    color: colors.muted,
+  },
+
+  tabs: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 28,
+  },
+
+  tab: {
+    height: 42,
+    paddingHorizontal: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
-    borderRadius: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-    gap: 12,
+    backgroundColor: colors.surface,
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 8,
+    marginBottom: 8,
   },
-  searchBox: {
+
+  activeTab: {
+    backgroundColor: colors.text,
+    borderColor: colors.text,
+  },
+
+  tabText: {
+    fontSize: 14,
+    color: colors.text,
+  },
+
+  activeTabText: {
+    color: "#FFFFFF",
+  },
+
+  count: {
+    marginLeft: 8,
+    fontSize: 12,
+    color: colors.muted,
+  },
+
+  activeCount: {
+    color: "#FFFFFF",
+  },
+
+  addTab: {
+    height: 42,
+    paddingHorizontal: 16,
+    backgroundColor: colors.text,
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+
+  addText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+
+  headingRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginBottom: 16,
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text,
+  },
+
+  total: {
+    marginLeft: 10,
+    fontSize: 13,
+    color: colors.muted,
+  },
+
+  department: {
+    marginBottom: 22,
+  },
+
+  departmentHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  departmentName: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: colors.text,
+  },
+
+  departmentCount: {
+    marginLeft: 7,
+    fontSize: 12,
+    color: colors.muted,
+  },
+
+  list: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+
+  employee: {
+    minHeight: 66,
+    paddingHorizontal: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#ECECE8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  initials: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.text,
+  },
+
+  employeeInfo: {
     flex: 1,
   },
-  filterGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  noMarginInput: {
-    marginBottom: 0,
-  },
-  noMarginSelect: {
-    marginBottom: 0,
-    width: 170,
+
+  employeeName: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text,
   },
 
-  // Table
-  tableCard: {
-    backgroundColor: colors.surface,
+  designation: {
+    marginTop: 3,
+    fontSize: 12,
+    color: colors.muted,
+  },
+
+  departmentText: {
+    width: 130,
+    fontSize: 12,
+    color: colors.muted,
+  },
+
+  empty: {
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 2,
-    overflow: 'hidden',
+    backgroundColor: colors.surface,
+    padding: 30,
   },
-  tableHeaderRow: {
-    backgroundColor: colors.surfaceSecondary,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
+
+  emptyTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.text,
   },
-  th: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.inkMuted,
-    letterSpacing: 0.8,
-    fontFamily: 'monospace',
-  },
-  tr: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  trSelected: {
-    backgroundColor: '#F3F4F0',
-  },
-  tdCode: {
-    width: 90,
-    fontSize: 11,
-    fontWeight: '800',
-    color: colors.inkPrimary,
-    fontFamily: 'monospace',
-  },
-  tdCell: {
-    justifyContent: 'center',
-  },
-  avatarMini: {
-    width: 28,
-    height: 28,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 2,
-  },
-  avatarMiniText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: '800',
-    fontFamily: 'monospace',
-  },
-  empName: {
+
+  emptyText: {
+    marginTop: 5,
     fontSize: 13,
-    fontWeight: '700',
-    color: colors.inkPrimary,
-  },
-  empEmail: {
-    fontSize: 10,
-    color: colors.inkMuted,
-    fontFamily: 'monospace',
-  },
-  empRole: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.inkPrimary,
-  },
-  empDept: {
-    fontSize: 10,
-    color: colors.inkSecondary,
-  },
-  tdText: {
-    fontSize: 11,
-    color: colors.inkSecondary,
-    fontFamily: 'monospace',
-  },
-  tdSalary: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: colors.inkPrimary,
-    fontFamily: 'monospace',
-  },
-  actionsCell: {
-    width: 130,
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-  },
-  actionLinkBtn: {
-    borderWidth: 1,
-    borderColor: colors.borderDark,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 2,
-  },
-  actionLinkText: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.inkPrimary,
-    fontFamily: 'monospace',
+    color: colors.muted,
   },
 });
