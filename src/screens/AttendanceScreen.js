@@ -17,16 +17,26 @@ const STATUS_FILTER = [
   { label: 'HALF DAY', value: 'HALF_DAY' },
 ];
 
+const formatDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const shiftDate = (dateString, amount) => {
+  const date = new Date(`${dateString}T12:00:00`);
+  date.setDate(date.getDate() + amount);
+  return formatDate(date);
+};
+
 export function AttendanceScreen() {
   const [attendanceList, setAttendanceList] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
-  const [selectedDate, setSelectedDate] = useState('2026-09-29');
-
-  // Edit / Record Modal State
+  const [selectedDate, setSelectedDate] = useState(() => formatDate(new Date()));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [formData, setFormData] = useState({
@@ -114,7 +124,6 @@ export function AttendanceScreen() {
 
   return (
     <View style={styles.container}>
-      {/* SECTION HEADER */}
       <View style={styles.sectionHeader}>
         <View>
           <Text style={styles.sectionSub}>DAILY TIME & ATTENDANCE LEDGER</Text>
@@ -130,7 +139,6 @@ export function AttendanceScreen() {
         />
       </View>
 
-      {/* QUICK SUMMARY METRICS STRIP */}
       <View style={styles.summaryBar}>
         <View style={styles.summaryItem}>
           <Text style={styles.sumLabel}>LOGGED RECORDS</Text>
@@ -156,23 +164,24 @@ export function AttendanceScreen() {
         </View>
       </View>
 
-      {/* CONTROL & FILTER STRIP */}
       <View style={styles.filterBar}>
         <View style={styles.dateSelector}>
           <TouchableOpacity
             style={styles.dateBtn}
-            onPress={() => setSelectedDate('2026-09-28')}
+            onPress={() => setSelectedDate((date) => shiftDate(date, -1))}
           >
-            <Text style={styles.dateBtnText}>◄ YESTERDAY</Text>
+            <Text style={styles.dateBtnText}>◀ YESTERDAY</Text>
           </TouchableOpacity>
           <View style={styles.dateDisplayBox}>
-            <Text style={styles.dateDisplayText}>{selectedDate} [ TODAY ]</Text>
+            <Text style={styles.dateDisplayText}>
+              {selectedDate} {selectedDate === formatDate(new Date()) ? '[ TODAY ]' : ''}
+            </Text>
           </View>
           <TouchableOpacity
             style={styles.dateBtn}
-            onPress={() => setSelectedDate('2026-09-30')}
+            onPress={() => setSelectedDate((date) => shiftDate(date, 1))}
           >
-            <Text style={styles.dateBtnText}>TOMORROW ►</Text>
+            <Text style={styles.dateBtnText}>TOMORROW ▶</Text>
           </TouchableOpacity>
         </View>
 
@@ -196,7 +205,6 @@ export function AttendanceScreen() {
         </View>
       </View>
 
-      {/* ATTENDANCE TABLE */}
       {loading ? (
         <LoadingState message="FETCHING ATTENDANCE RECORDS..." />
       ) : attendanceList.length === 0 ? (
@@ -221,20 +229,16 @@ export function AttendanceScreen() {
           {attendanceList.map((att) => (
             <View key={att.id} style={styles.tr}>
               <Text style={styles.tdId}>{att.employee_id}</Text>
-
               <View style={{ flex: 1.5 }}>
                 <Text style={styles.empName}>{att.employee_name}</Text>
                 <Text style={styles.empDept}>{att.department}</Text>
               </View>
-
               <Text style={styles.tdTime}>{att.check_in}</Text>
               <Text style={styles.tdTime}>{att.check_out}</Text>
               <Text style={styles.tdHours}>{att.hours}</Text>
-
               <View style={{ width: 110 }}>
                 <Badge status={att.status} size="sm" />
               </View>
-
               <View style={styles.actionsCell}>
                 <TouchableOpacity
                   onPress={() => handleOpenEditRecord(att)}
@@ -248,7 +252,6 @@ export function AttendanceScreen() {
         </View>
       )}
 
-      {/* RECORD / EDIT ATTENDANCE MODAL */}
       <Modal
         visible={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -353,8 +356,6 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontFamily: 'monospace',
   },
-
-  // Summary Bar
   summaryBar: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -386,8 +387,6 @@ const styles = StyleSheet.create({
     color: colors.inkPrimary,
     fontFamily: 'monospace',
   },
-
-  // Filter Bar
   filterBar: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -444,8 +443,6 @@ const styles = StyleSheet.create({
   noMarginSelect: {
     marginBottom: 0,
   },
-
-  // Table
   tableCard: {
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -523,8 +520,6 @@ const styles = StyleSheet.create({
     color: colors.inkPrimary,
     fontFamily: 'monospace',
   },
-
-  // Modal
   formGrid: {
     flexDirection: 'column',
   },

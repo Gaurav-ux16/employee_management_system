@@ -17,27 +17,36 @@ const STATUS_TABS = [
   { id: 'REJECTED', label: 'REJECTED' },
 ];
 
+const formatDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const shiftDate = (date, amount) => {
+  const shifted = new Date(date);
+  shifted.setDate(shifted.getDate() + amount);
+  return formatDate(shifted);
+};
+
 export function LeavesScreen() {
   const [leaves, setLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ALL');
   const [actionLoading, setActionLoading] = useState(null);
-
-  // New Leave Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({
     employee_id: '',
     leave_type: 'Casual Leave',
-    start_date: '2026-10-05',
-    end_date: '2026-10-07',
+    start_date: shiftDate(new Date(), 1),
+    end_date: shiftDate(new Date(), 3),
     days_count: '3',
     reason: '',
   });
   const [errors, setErrors] = useState({});
   const [submitLoading, setSubmitLoading] = useState(false);
-
-  // Rejection Modal
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectingLeaveId, setRejectingLeaveId] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -98,8 +107,8 @@ export function LeavesScreen() {
     setFormData({
       employee_id: employees[0]?.id || 'EMP-1001',
       leave_type: 'Casual Leave',
-      start_date: '2026-10-05',
-      end_date: '2026-10-07',
+      start_date: shiftDate(new Date(), 1),
+      end_date: shiftDate(new Date(), 3),
       days_count: '3',
       reason: '',
     });
@@ -139,7 +148,6 @@ export function LeavesScreen() {
 
   return (
     <View style={styles.container}>
-      {/* SECTION HEADER */}
       <View style={styles.sectionHeader}>
         <View>
           <Text style={styles.sectionSub}>TIME-OFF & ABSENCE WORKFLOW</Text>
@@ -158,7 +166,6 @@ export function LeavesScreen() {
         />
       </View>
 
-      {/* TABS & FILTER HEADER */}
       <View style={styles.tabStrip}>
         {STATUS_TABS.map((tab) => {
           const isActive = activeTab === tab.id;
@@ -177,7 +184,6 @@ export function LeavesScreen() {
         })}
       </View>
 
-      {/* LEAVE CARDS / LIST */}
       {loading ? (
         <LoadingState message="FETCHING LEAVE WORKFLOW QUEUE..." />
       ) : leaves.length === 0 ? (
@@ -194,7 +200,6 @@ export function LeavesScreen() {
 
             return (
               <View key={leave.id} style={styles.leaveCard}>
-                {/* TOP HEADER */}
                 <View style={styles.cardTopHeader}>
                   <View style={styles.userMeta}>
                     <Text style={styles.empCodeTag}>{leave.employee_code}</Text>
@@ -208,7 +213,6 @@ export function LeavesScreen() {
                   <Badge status={leave.status} />
                 </View>
 
-                {/* MIDDLE DETAILS GRID */}
                 <View style={styles.cardDetails}>
                   <View style={styles.detailItem}>
                     <Text style={styles.dLabel}>LEAVE TYPE</Text>
@@ -232,7 +236,6 @@ export function LeavesScreen() {
                   </View>
                 </View>
 
-                {/* REASON BOX */}
                 <View style={styles.reasonBox}>
                   <Text style={styles.reasonLabel}>APPLICATION REASON:</Text>
                   <Text style={styles.reasonText}>"{leave.reason}"</Text>
@@ -243,7 +246,6 @@ export function LeavesScreen() {
                   )}
                 </View>
 
-                {/* ACTIONS BAR FOR PENDING */}
                 {isPending && (
                   <View style={styles.cardFooterActions}>
                     <Button
@@ -268,7 +270,6 @@ export function LeavesScreen() {
         </View>
       )}
 
-      {/* NEW LEAVE MODAL */}
       <Modal
         visible={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -327,14 +328,14 @@ export function LeavesScreen() {
               label="START DATE (YYYY-MM-DD)"
               value={formData.start_date}
               onChangeText={(v) => setFormData((p) => ({ ...p, start_date: v }))}
-              placeholder="2026-10-05"
+              placeholder="YYYY-MM-DD"
               style={{ flex: 1 }}
             />
             <Input
               label="END DATE (YYYY-MM-DD)"
               value={formData.end_date}
               onChangeText={(v) => setFormData((p) => ({ ...p, end_date: v }))}
-              placeholder="2026-10-07"
+              placeholder="YYYY-MM-DD"
               style={{ flex: 1 }}
             />
           </View>
@@ -352,7 +353,6 @@ export function LeavesScreen() {
         </View>
       </Modal>
 
-      {/* REJECTION REASON MODAL */}
       <Modal
         visible={isRejectModalOpen}
         onClose={() => setIsRejectModalOpen(false)}
@@ -418,8 +418,6 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontFamily: 'monospace',
   },
-
-  // Tabs
   tabStrip: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -447,8 +445,6 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: colors.inkPrimary,
   },
-
-  // Cards
   cardsGrid: {
     flexDirection: 'column',
     gap: 16,
@@ -495,8 +491,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.inkMuted,
   },
-
-  // Details
   cardDetails: {
     flexDirection: 'row',
     backgroundColor: colors.surfaceSecondary,
@@ -523,8 +517,6 @@ const styles = StyleSheet.create({
     color: colors.inkPrimary,
     fontFamily: 'monospace',
   },
-
-  // Reason
   reasonBox: {
     marginBottom: 12,
   },
@@ -549,8 +541,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontFamily: 'monospace',
   },
-
-  // Footer Actions
   cardFooterActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -559,8 +549,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-
-  // Modal Form
   formGrid: {
     flexDirection: 'column',
   },
